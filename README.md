@@ -12,7 +12,7 @@ go get github.com/c633/saltbox/...
 
 ```
 # to encrypt
-saltbox encrypt -i inputfile [-p passphrase] [-o output]
+saltbox encrypt -i inputfile [-o output]
 # to decrypt
-saltbox decrypt -i inputfile [-p passphrase] [-o output]
+saltbox decrypt -i inputfile [-o output]
 ```
