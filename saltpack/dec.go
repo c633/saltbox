@@ -7,7 +7,7 @@ import (
 	"github.com/keybase/saltpack"
 )
 
-func SaltpackDecrypt(source io.Reader, sink io.WriteCloser, secretKey boxKeyPair) error {
+func SaltpackDecrypt(source io.Reader, sink io.WriteCloser, keypair boxKeyPair) error {
 	// How much do we need to peek to get at the mode number?
 	// How much do we need to peek to get at the mode number?
 	// - bin tag (2, 3, or 5 bytes)
@@ -22,7 +22,7 @@ func SaltpackDecrypt(source io.Reader, sink io.WriteCloser, secretKey boxKeyPair
 		return err
 	}
 
-	_, plainsource, err := saltpack.NewDecryptStream(saltpack.CheckKnownMajorVersion, peekable, keyring(secretKey))
+	_, plainsource, err := saltpack.NewDecryptStream(saltpack.CheckKnownMajorVersion, peekable, keyring(keypair))
 	if err != nil {
 		return err
 	}

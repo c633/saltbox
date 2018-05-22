@@ -49,10 +49,10 @@ func encrypt(cmd *cobra.Command, args []string) {
 		util.Fatal(err)
 	}
 	keypair, err := saltpack.MakeBoxKeyPairFromSecret(keyStream)
+	defer memguard.WipeBytes(keypair.Secret[:])
 	if err != nil {
 		util.Fatal(err)
 	}
-	memguard.WipeBytes(keypair.Secret[:])
 
 	input := cmd.Flag("input").Value.String()
 
@@ -77,7 +77,7 @@ func encrypt(cmd *cobra.Command, args []string) {
 		util.Fatal(err)
 	}
 
-	if err = saltpack.SaltpackEncrypt(source, sink, keypair.Public); err != nil {
+	if err = saltpack.SaltpackEncrypt(source, sink, keypair); err != nil {
 		util.Fatal(err)
 	}
 }

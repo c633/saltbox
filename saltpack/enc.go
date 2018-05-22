@@ -6,16 +6,17 @@ import (
 	"github.com/keybase/saltpack"
 )
 
-func SaltpackEncrypt(source io.Reader, sink io.WriteCloser, pk publicKey) error {
+func SaltpackEncrypt(source io.Reader, sink io.WriteCloser, keypair boxKeyPair) error {
 	// always use the current version of saltpack
 	saltpackVersion := saltpack.CurrentVersion()
 
-	receiverBoxKeys := []saltpack.BoxPublicKey{boxPublicKey(pk)}
+	senderBoxKey := boxSecretKey(keypair)
+	receiverBoxKeys := []saltpack.BoxPublicKey{boxPublicKey(keypair.Public)}
 
 	var plainsink io.WriteCloser
 	var err error
 
-	plainsink, err = saltpack.NewEncryptStream(saltpackVersion, sink, nil, receiverBoxKeys)
+	plainsink, err = saltpack.NewEncryptStream(saltpackVersion, sink, senderBoxKey, receiverBoxKeys)
 
 	if err != nil {
 		return err
