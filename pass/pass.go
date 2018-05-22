@@ -2,10 +2,11 @@ package pass
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"os"
 
+	"github.com/awnumar/memguard"
 	"github.com/c633/saltbox/saltpack"
-	"github.com/c633/saltbox/util"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/crypto/ssh/terminal"
@@ -15,7 +16,7 @@ const (
 	SaltSize = 32
 )
 
-func ReadPass() ([]byte, error) {
+func ReadPass() (*memguard.LockedBuffer, error) {
 	state, err := terminal.MakeRaw(0)
 	if err != nil {
 		return nil, err
@@ -26,7 +27,10 @@ func ReadPass() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	password := []byte(passwordString)
+	password, err := memguard.NewMutableFromBytes([]byte(passwordString))
+	if err != nil {
+		return nil, err
+	}
 	return password, nil
 }
 
@@ -37,18 +41,23 @@ var scryptParams = struct {
 	p int
 }{1048576, 8, 1}
 
-func DeriveKey(passphrase []byte, salt []byte) (*[saltpack.KeySize]byte, error) {
-	rawKey, err := scrypt.Key(passphrase, salt, scryptParams.N, scryptParams.r, scryptParams.p, saltpack.KeySize)
+func DeriveKey(passphrase *memguard.LockedBuffer, salt []byte) (*memguard.LockedBuffer, error) {
+	defer passphrase.Destroy()
+
+	buf := make([]byte, passphrase.Size())
+	defer memguard.WipeBytes(buf)
+	subtle.ConstantTimeCopy(1, buf, passphrase.Buffer())
+
+	rawKey, err := scrypt.Key(buf, salt, scryptParams.N, scryptParams.r, scryptParams.p, saltpack.KeySize)
 	if err != nil {
 		return nil, err
 	}
 
-	var key [saltpack.KeySize]byte
-	copy(key[:], rawKey)
-	util.Zero(rawKey)
-	util.Zero(passphrase)
-
-	return &key, nil
+	key, err := memguard.NewImmutableFromBytes(rawKey)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 func MakeRand(n int) ([]byte, error) {

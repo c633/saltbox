@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/awnumar/memguard"
+
 	"github.com/c633/saltbox/pass"
 	"github.com/c633/saltbox/saltpack"
+	"github.com/c633/saltbox/util"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +20,6 @@ const (
 func init() {
 	rootCmd.AddCommand(encryptCmd)
 	encryptCmd.Flags().StringP("input", "i", "", "specify an input file (required)")
-	encryptCmd.Flags().StringP("passphrase", "p", "", "specify the passphrase for the encryption")
 	encryptCmd.Flags().StringP("output", "o", "", "specify the output directory (input file's directory by default)")
 	encryptCmd.MarkFlagRequired("input")
 }
@@ -31,32 +32,33 @@ var encryptCmd = &cobra.Command{
 }
 
 func encrypt(cmd *cobra.Command, args []string) {
+	defer memguard.DestroyAll()
+
 	var err error
 
 	salt, err := pass.MakeRand(pass.SaltSize)
 	if err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
-	passphrase := []byte(cmd.Flag("passphrase").Value.String())
-	if len(passphrase) == 0 {
-		if passphrase, err = pass.ReadPass(); err != nil {
-			log.Fatal(err)
-		}
+	passphrase, err := pass.ReadPass()
+	if err != nil {
+		util.Fatal(err)
 	}
 	keyStream, err := pass.DeriveKey(passphrase, salt)
 	if err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
 	keypair, err := saltpack.MakeBoxKeyPairFromSecret(keyStream)
 	if err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
+	memguard.WipeBytes(keypair.Secret[:])
 
 	input := cmd.Flag("input").Value.String()
 
 	var source io.Reader
 	if source, err = os.Open(input); err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
 
 	output := cmd.Flag("output").Value.String()
@@ -68,14 +70,14 @@ func encrypt(cmd *cobra.Command, args []string) {
 
 	var sink io.WriteCloser
 	if sink, err = os.Create(output); err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
 	n, err := sink.Write(salt)
 	if n != pass.SaltSize || err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
 
 	if err = saltpack.SaltpackEncrypt(source, sink, keypair.Public); err != nil {
-		log.Fatal(err)
+		util.Fatal(err)
 	}
 }

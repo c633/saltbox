@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 
-	"github.com/c633/saltbox/util"
+	"github.com/awnumar/memguard"
+
 	"github.com/keybase/saltpack"
 	"golang.org/x/crypto/nacl/box"
 )
@@ -27,20 +27,11 @@ type boxKeyPair struct {
 	Secret *secretKey
 }
 
-func MakeBoxKeyPairFromSecret(secret *[KeySize]byte) (boxKeyPair, error) {
-	r := bytes.NewReader(secret[:])
+func MakeBoxKeyPairFromSecret(secret *memguard.LockedBuffer) (boxKeyPair, error) {
+	defer secret.Destroy()
+	r := bytes.NewReader(secret.Buffer())
 
-	kp, err := generateBoxKeyPair(r)
-	if err != nil {
-		return boxKeyPair{}, err
-	}
-
-	if r.Len() > 0 {
-		return boxKeyPair{}, fmt.Errorf("Did not use %d secret byte(s)", r.Len())
-	}
-
-	util.Zero(secret[:])
-	return kp, err
+	return generateBoxKeyPair(r)
 }
 
 func generateBoxKeyPair(reader io.Reader) (boxKeyPair, error) {
